@@ -1,0 +1,34 @@
+# Site settings
+# These are used to personalize your new site. If you look in the HTML files,
+# you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
+# You can create any custom variable you would like, and they will be accessible
+# in the templates via {{ site.myvariable }}.
+title: Tamas' dev blog
+email: tamas.boros@protonmail.com
+description: >-
+  Hello world!
+baseurl: ""
+url: "https://blog.tamasboros.com"
+twitter_username: TamasNo1
+github_username:  TamasNo1
+google_analytics: UA-49132483-3
+
+# Build settings
+markdown: kramdown
+theme: minima
+plugins:
+  - jekyll-feed
+
+header_pages: []
+
+# Exclude from processing.
+# The following items will not be processed, by default. Create a custom list
+# to override the default setting.
+# exclude:
+#   - Gemfile
+#   - Gemfile.lock
+#   - node_modules
+#   - vendor/bundle/
+#   - vendor/cache/
+#   - vendor/gems/
+#   - vendor/ruby/
