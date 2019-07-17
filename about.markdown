@@ -4,7 +4,7 @@ title: About
 permalink: /about/
 ---
 
-Hello World! My name is Tamas, working as a Software Architect for [Plentific][plentific].
+Hello World! My name is Tamas, Engineering Lead @ [Juggle Jobs][juggle].
 
 
-[plentific]: https://plentific.com
+[juggle]: https://juggle.jobs

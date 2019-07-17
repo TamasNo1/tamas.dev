@@ -3,10 +3,9 @@
 # you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
-title: Tamas' dev blog
+title: tamas.dev
 email: tamas.boros@protonmail.com
-description: >-
-  Hello world!
+description: ""
 baseurl: ""
 url: "https://tamas.dev"
 twitter_username: TamasNo1
