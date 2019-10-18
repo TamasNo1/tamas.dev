@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Setting up ECS service discovery with HAProxy for $8 a month"
+title:  "Run your ECS cluster with service discovery and HAProxy for $8 a month"
 date:   2019-10-18 7:30:00 +0100
 categories: aws ecs haproxy nginx certbot microservices containers route53 dns srv
 ---
