@@ -197,7 +197,45 @@ Once done, just restart HAProxy `sudo service haproxy restart` and everything sh
 
 ## Like magic, but better!
 
-Once the server has been restarted, you can open your browser and visit your domain. You should see a *Hello from XYZ* message where XYZ is a hash of the server's container. Since the load is spread across multiple instances, every time you refresh the page, the target container can be a different one from the previous page load. I really hope you've found this post useful and if you'd like to do any further research, please see the resources I used below.
+Once the server has been restarted, you can open your browser and visit your domain. You should see a *Hello from XYZ* message where XYZ is a hash of the server's container. Since the load is spread across multiple instances, every time you refresh the page, the target container can be a different one from the previous page load. I really hope you've found this post useful and if you'd like to do any further research, please see the resources I used below. Also, just to get a sense of scale and pricing, find below the current, the updated and the ELB based monthly charges.
+
+## Monthly charges
+
+#### Current monthly charges:
+
+```
+1x t2.micro on demand:
+$0.0132USD * 24 hours * 30 days = $9.5 per month
+```
+Total: **$9.504** per month
+
+
+#### Updated monthly charges:
+
+```
+1x t3a.nano on demand (proxy server):
+$0.0053 * 24 * 30 = $3.816 per month
+
+1x t3a.micro spot (ECS instance):
+~$0.0031 * 24 * 30 = $2.232 per month
+
+Route53 and Cloud Map charges:
+~$1.5 per month
+```
+Total: **$7.548** per month (yes, it means paying less for a more managed, more scalable solution)
+
+#### Monthly charges using an ELB:
+
+```
+1x t3a.micro spot (ECS instance):
+~$0.0031 * 24 * 30 = $2.232 per month
+
+1x Application Load Balancer:
+$0.02646 * 24 * 30 = $19.0512 per month + LCU-hour charges
+```
+Total: **$21.2832** per month (+ LCU-hour charges)
+
+---
 
 Resources used:
 
