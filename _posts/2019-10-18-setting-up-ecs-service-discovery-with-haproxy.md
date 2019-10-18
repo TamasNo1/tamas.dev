@@ -199,8 +199,10 @@ Once done, just restart HAProxy `sudo service haproxy restart` and everything sh
 
 Once the server has been restarted, you can open your browser and visit your domain. You should see a *Hello from XYZ* message where XYZ is a hash of the server's container. Since the load is spread across multiple instances, every time you refresh the page, the target container can be a different one from the previous page load. I really hope you've found this post useful and if you'd like to do any further research, please see the resources I used below.
 
-Resources used the most:
+Resources used:
+
 [DNS for Service Discovery in HAProxy](https://www.haproxy.com/blog/dns-service-discovery-haproxy/)
+
 [How to HTTPS with Hugo LetsEncrypt and HAProxy](https://skarlso.github.io/2017/02/15/how-to-https-with-hugo-letsencrypt-haproxy/)
 
 
