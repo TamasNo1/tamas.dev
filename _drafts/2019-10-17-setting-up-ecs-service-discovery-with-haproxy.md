@@ -30,7 +30,7 @@ The goal will be to:
 
 ## Setting up ECS
 
-**1.,** Without going into too much details on how to use ECS, let's create a new ECS cluster, select Linux + Networking (todo: check) and use the following configuration:
+**1.** Without going into too much details on how to use ECS, let's create a new ECS cluster, select Linux + Networking (todo: check) and use the following configuration:
 - Provisioning model: Spot
 - Allocation strategy: Lowest price
 - EC2 instance types: t2.micro, t2.small, t3.micro, t3.small
@@ -39,7 +39,7 @@ The goal will be to:
 - Either select an existing or create new container instance and spot fleet IAM roles
 - No need to enable Container Insights 
 
-**2.,** Once the cluster is ready, create a task definition for our hello-world service. Again, without going into too much details, these are the key configuration points:
+**2.** Once the cluster is ready, create a task definition for our hello-world service. Again, without going into too much details, these are the key configuration points:
 - Name: hello-world
 - Compatibilities / Requires compatibilities: EC2
 - Container definitions:
@@ -48,7 +48,7 @@ The goal will be to:
         - containerPort: 80
         - hostPort: 0 <= This will specify dynamic port allocation on the host
 
-**3.,** With a cluster and a task definition we can now create the service:
+**3.** With a cluster and a task definition we can now create the service:
 - Launch type: EC2
 - Task definition / revision: hello-world (latest)
 - Cluster: select your cluster created in step 1
@@ -71,23 +71,140 @@ The goal will be to:
 
 ## Setting up HAProxy
 
-Create box
-- Add security group
-- Add IAM role
-Test DNS records
-Install everything
-Run certbot
-Configure HAProxy
-restart HJAProxy
-profit
+**1.** Create an EC2 box. Here I just simply created a t3a.nano EC2 instance with Ubuntu 18.04 LTS. The important bit here is to make sure to place the instance in the same VPC as the ECS instances.
 
+[![EC2 configuration][ec2_config]][ec2_config]{:target="_blank"}
 
+**2.** Configure security groups. In order to be able to access all ports on the instances, you'll need to add an Inbound rule to the security group used by the ECS instances. The rule should allow All TCP traffic coming from the security group created for the HAProxy instance.
+
+[![Security group configuration][sg_config]][sg_config]{:target="_blank"}
+
+**3.** At this point we can test if we have access to the services and if the DNS resolution is working correctly:
+- SSH into the EC2 box we've jsut created
+- Test if `dig srv _hello-world-service.internal` returns the 3 SRV records we expect
+- Test if the record is accesible on the specified port, ie.: `curl 703a...c6d._hello-world-service.internal:32770`
+
+[![Test DNS and access with dig and curl][test_dig_curl]][test_dig_curl]{:target="_blank"}
+
+If you get a HTML response with Hello World, all is good so far.
+
+**4.** Time do set up Let's Encrypt. My preferred way of doing that on AWS is via DNS so there's no need to shut down the proxy server, or to have certbot specific route configurations. Basically certbot will use the machined IAM role to write some entries into the domain's Hosted Zone in Route 53. The IAM role that you need to create and attach to the EC2 box is the following:
+```
+{
+    "Version": "2012-10-17",
+    "Id": "certbot-dns-route53 policy",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones",
+                "route53:GetChange"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Effect" : "Allow",
+            "Action" : [
+                "route53:ChangeResourceRecordSets"
+            ],
+            "Resource" : [
+                "arn:aws:route53:::hostedzone/YOURHOSTEDZONEID"
+            ]
+        }
+    ]
+}
+
+```
+Don't forget to add your Route53 Hosted Zone ID to the resources section.
+
+**5.** Time to install HAProxy and certbot:
+```
+sudo add-apt-repository -y ppa:vbernat/haproxy-2.0
+sudo add-apt-repository -y ppa:certbot/certbot
+sudo apt-get update
+sudo apt-get install -y software-properties-common certbot python3-certbot-dns-route53 haproxy=2.0.\* 
+```
+
+**6.** Let's run certbot and prepare certificates for HAProxy:
+```
+certbot certonly -d *.yourdomain.com -d yourdomain.com \
+    --dns-route53 \
+    -m your.email@email.com \
+    --agree-tos \
+    --non-interactive \
+    --server https://acme-v02.api.letsencrypt.org/directory \
+    --logs-dir ~/letsencrypt/log/ \
+    --config-dir ~/letsencrypt/config/ \
+    --work-dir ~/letsencrypt/work/
+
+```
+
+Once the certificates are generated, you need to concatenate them for HAProxy:
+```
+sudo mkdir -p /etc/haproxy/certs/
+DOMAIN='yourdomain.com' sudo -E bash -c 'cat ./letsencrypt/config/live/$DOMAIN/fullchain.pem ./letsencrypt/config/live/$DOMAIN/privkey.pem > /etc/haproxy/certs/$DOMAIN.pem'
+```
+
+**7.** Configure HAProxy: Open HAProxy configuration with your favourite editor (`sudo nano /etc/haproxy/haproxy.cfg`) and append the following at the end of the file:
+```
+# In case it's a simple http call, we redirect to the basic backend server
+# which in turn, if it isn't an SSL call, will redirect to HTTPS that is
+# handled by the frontend setting called 'www-https'.
+frontend www-http
+    # Redirect HTTP to HTTPS
+    bind *:80
+    # Adds http header to end of end of the HTTP request
+    http-request add-header X-Forwarded-Proto http
+    # Sets the default backend to use which is defined below with name 'www-backend'
+    default_backend www-backend
+
+# If the call is HTTPS we set the certificate and direct traffic to the 
+# backend server.
+frontend www-https
+    # Bind 443 with the generated letsencrypt cert.
+    bind *:443 ssl crt /etc/haproxy/certs/yourdomain.com.pem
+    # set x-forward to https
+    http-request add-header X-Forwarded-Proto https
+    # set X-SSL in case of ssl_fc <- explained below
+    http-request set-header X-SSL %[ssl_fc]
+    default_backend www-backend
+
+resolvers awsvpc
+  # Your nameserver address should always be your VPC CIDR block +2
+  # (in this case 10.0.0.0 + 2 = 10.0.0.2) and port 53
+  nameserver dns1 10.0.0.2:53
+  resolve_retries 3
+  timeout retry 1s
+  # allow larger DNS payloads due to multiple entries
+  accepted_payload_size 8192
+
+backend www-backend
+   # Redirect with code 301 so the browser understands it is a redirect. If it's not SSL_FC.
+   # ssl_fc: Returns true when the front connection was made via an SSL/TLS transport
+   # layer and is locally deciphered. This means it has matched a socket declared
+   # with a "bind" line having the "ssl" option.
+   redirect scheme https code 301 if !{ ssl_fc }
+   # Servers for the running ECS service:
+   server-template srv 3 _hello-world-service.internal check resolvers awsvpc resolve-opts allow-dup-ip init-addr last,libc,none
+
+```
+
+A little explanation here: The key configuration bit for this use case is HAProxy's `server-template` directive that adds the backend servers dynamically, base on the response coming from the DNS server. 
+
+Once done, just restart HAProxy `sudo service haproxy restart` and everything should be good to go!
+
+## Like magic, but better!
+
+Once the server has been restarted, you can open your browser and visit your domain. You should see a *Hello from XYZ* message where XYZ is a hash of the server's container. Since the load is spread across multiple instances, every time you refresh the page, the target container can be a different one from the previous page load. I really hope you've found this post useful and if you'd like to do any further research, please see the resources I used below.
+
+Resources used the most:
+[DNS for Service Discovery in HAProxy](https://www.haproxy.com/blog/dns-service-discovery-haproxy/)
+[How to HTTPS with Hugo LetsEncrypt and HAProxy](https://skarlso.github.io/2017/02/15/how-to-https-with-hugo-letsencrypt-haproxy/)
 
 
 [dns_records]: https://tamas.dev/static/2019-10-17/service_discovery_records.png
-
-
-[cloudfront_502_image]: https://tamas.dev/static/cloudfront_502s.png
-[cloudfront_502_link]: https://aws.amazon.com/premiumsupport/knowledge-center/resolve-cloudfront-connection-error/
-[shakespeare_image]: https://external-asdasdpreview.redd.it/E896abucqJeMw3XvoqpZ4RMHbKBjRoqqDlpFwqECmtg.jpg?width=960&crop=smart&auto=webp&s=52d8c00bf39e5759cec1be9938d515f2d81f4b63
-[shakespeare_link]: https://www.reddit.com/r/me_irl/comments/86tb5k/meirl/
+[ec2_config]: https://tamas.dev/static/2019-10-17/ec2_config.png
+[sg_config]: https://tamas.dev/static/2019-10-17/sg_config.png
+[test_dig_curl]: https://tamas.dev/static/2019-10-17/test_dig_curl.png
