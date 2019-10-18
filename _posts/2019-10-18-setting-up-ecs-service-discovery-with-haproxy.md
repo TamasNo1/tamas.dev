@@ -46,7 +46,7 @@ The goal will be to:
     - image: strm/helloworld-http
     - port mappings:
         - containerPort: 80
-        - hostPort: 0 <= This will specify dynamic port allocation on the host
+        - hostPort: 0 **<= This will specify dynamic port allocation on the host**
 
 **3.** With a cluster and a task definition we can now create the service:
 - Launch type: EC2
@@ -54,15 +54,15 @@ The goal will be to:
 - Cluster: select your cluster created in step 1
 - Service name: hello-world-service
 - Service type: Replica
-- Number of tasks: 3 <= In order to test load balancing
+- Number of tasks: 3 **<= In order to test load balancing**
 - Deployment type: Rolling update
-- Load balancer type: None <= Whole point of this post
+- Load balancer type: None **<= Whole point of this post**
 - Enable service discovery integration: checked
 - Namespace: create new private namespace
 - Namespace name: internal
 - Cluster VPC: select the VPC that belongs to the cluster created in step 1
 - Configure service discovery service: Create new service discovery service
-- Service discovery name: _hello-rowld-service **<= Very important: HAProxy will only resolve the SRV DNS correctly if it starts with an underscore**
+- Service discovery name: _hello-world-service **<= Very important: HAProxy will only resolve the SRV DNS correctly if it starts with an underscore**
 - Enable ECS task health propagation: checked
 - Service Auto Scaling: Don not adjust the service's desired count
 
