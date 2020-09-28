@@ -4,7 +4,7 @@ title: About
 permalink: /about/
 ---
 
-Hello World! My name is Tamas, Engineering Lead @ [Juggle Jobs][juggle].
+Hello World! My name is Tamas, Engineering Lead @ [FYLD][fyld].
 
 
-[juggle]: https://juggle.jobs
+[fyld]: https://fyld.ai
