@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.5.0 -->
+<title>Run your ECS cluster with service discovery and HAProxy for $8 a month | tamas.dev</title>
+<meta name="generator" content="Jekyll v3.8.3" />
+<meta property="og:title" content="Run your ECS cluster with service discovery and HAProxy for $8 a month" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="Keeping things simple When working on side projects I always try to keep things simple and focus on the important things at the beginning as delivering values is key. I don’t want to deal with clusters, HA, pipelines etc. because it’s more than alright to deploy to production from your laptop in the early days. In this particular example, the infrastructure is basically an RDS instance (no multi AZ at this point) and an EC2 box with Ubuntu and docker installed on it manually. The deploy process is a simple shell script on my laptop that builds the container, uploads it to the registry, dials in to the remote box via SSH and does a docker pull. Super simple. However as time passes and the project gets traction, it’s getting more and more pressing to come up with at least a semi-scalable solution which is what this post is about." />
+<meta property="og:description" content="Keeping things simple When working on side projects I always try to keep things simple and focus on the important things at the beginning as delivering values is key. I don’t want to deal with clusters, HA, pipelines etc. because it’s more than alright to deploy to production from your laptop in the early days. In this particular example, the infrastructure is basically an RDS instance (no multi AZ at this point) and an EC2 box with Ubuntu and docker installed on it manually. The deploy process is a simple shell script on my laptop that builds the container, uploads it to the registry, dials in to the remote box via SSH and does a docker pull. Super simple. However as time passes and the project gets traction, it’s getting more and more pressing to come up with at least a semi-scalable solution which is what this post is about." />
+<link rel="canonical" href="http://localhost:4000/aws/ecs/haproxy/nginx/certbot/microservices/containers/route53/dns/srv/2019/10/18/run-your-ecs-cluster-with-service-discovery-and-haproxy-for-8-a-month.html" />
+<meta property="og:url" content="http://localhost:4000/aws/ecs/haproxy/nginx/certbot/microservices/containers/route53/dns/srv/2019/10/18/run-your-ecs-cluster-with-service-discovery-and-haproxy-for-8-a-month.html" />
+<meta property="og:site_name" content="tamas.dev" />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2019-10-18T07:30:00+01:00" />
+<script type="application/ld+json">
+{"headline":"Run your ECS cluster with service discovery and HAProxy for $8 a month","dateModified":"2019-10-18T07:30:00+01:00","datePublished":"2019-10-18T07:30:00+01:00","description":"Keeping things simple When working on side projects I always try to keep things simple and focus on the important things at the beginning as delivering values is key. I don’t want to deal with clusters, HA, pipelines etc. because it’s more than alright to deploy to production from your laptop in the early days. In this particular example, the infrastructure is basically an RDS instance (no multi AZ at this point) and an EC2 box with Ubuntu and docker installed on it manually. The deploy process is a simple shell script on my laptop that builds the container, uploads it to the registry, dials in to the remote box via SSH and does a docker pull. Super simple. However as time passes and the project gets traction, it’s getting more and more pressing to come up with at least a semi-scalable solution which is what this post is about.","@type":"BlogPosting","mainEntityOfPage":{"@type":"WebPage","@id":"http://localhost:4000/aws/ecs/haproxy/nginx/certbot/microservices/containers/route53/dns/srv/2019/10/18/run-your-ecs-cluster-with-service-discovery-and-haproxy-for-8-a-month.html"},"url":"http://localhost:4000/aws/ecs/haproxy/nginx/certbot/microservices/containers/route53/dns/srv/2019/10/18/run-your-ecs-cluster-with-service-discovery-and-haproxy-for-8-a-month.html","@context":"http://schema.org"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="http://localhost:4000/feed.xml" title="tamas.dev" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/">tamas.dev</a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/about/">About</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <article class="post h-entry" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title p-name" itemprop="name headline">Run your ECS cluster with service discovery and HAProxy for $8 a month</h1>
+    <p class="post-meta">
+      <time class="dt-published" datetime="2019-10-18T07:30:00+01:00" itemprop="datePublished">Oct 18, 2019
+      </time></p>
+  </header>
+
+  <div class="post-content e-content" itemprop="articleBody">
+    <h2 id="keeping-things-simple">Keeping things simple</h2>
+<p>When working on side projects I always try to keep things simple and focus on the important things at the beginning as delivering values is key. I don’t want to deal with clusters, HA, pipelines etc. because it’s more than alright to deploy to production from your laptop in the early days. In this particular example, the infrastructure is basically an RDS instance (no multi AZ at this point) and an EC2 box with Ubuntu and docker installed on it manually. The deploy process is a simple shell script on my laptop that builds the container, uploads it to the registry, dials in to the remote box via SSH and does a docker pull. Super simple. However as time passes and the project gets traction, it’s getting more and more pressing to come up with at least a semi-scalable solution which is what this post is about.</p>
+
+<p>I recently got to a point where I wanted to introduce multiple containers (Django web server, celery worker, celery beat). Sure, I could just add another build and pull command to my existing script, but I figured maybe there’s a simple way to do this in a more proper fashion without blowing the budget. ECS seemed like a good choice (EC2 based on Fargate seems to be more expensive at this small scale) because it deals with deployment, container scheduling, logging, monitoring, etc. My only worry was that putting a load balancer in front of the services would increase the monthly budget by 50% (again, we’re talking very small scale), therefore I started looking for alternate solutions. And that’s when I found a solution provided by ECS itself.</p>
+
+<h2 id="service-discovery-à-la-ecs">Service discovery à la ECS</h2>
+<p>As it turns out, ECS supports service discovery out of the box, which is great as it solves half of my problem. If service discovery is enabled, a private Route53 zone is created (and managed by the service discovery service) and whenever a new container is scheduled, a new SRV and A record will be created automagically. I didn’t know this before, but using an SRV DNS record, you can define not just the target location, but also the target port. This solution works beautifully with dynamic port allocation which allows running multiple instances of the same service on a single physical box. The other huge benefit of this implementation is that there’s no Elastic Load Balancer involved, it all relies on DNS records and them being up to date. Think of it as a client side load balancing. And this is where I need a solution for the other half of the problem. I will need a reverse proxy in front of the services in order to resolve the DNS entries and to provide a single port exposed to the outside world. And this is where HAProxy comes to play.</p>
+
+<p>I’ll be honest here, I don’t have any prior experience with HAProxy so please don’t take any of the remaining post as a guide or as a best practice. The goal here is to explore possibilities that can save you a couple of bucks (literally a couple) at the early phase of your project. My first choice was Nginx as I have some experience with it. Unfortunately it does not support this use case only in their Nginx Plus offering, therefore HAProxy it is.</p>
+
+<p>As you’ll see later it’s fairly straight forward to set it up and configure, also it’s still just a proxy server at the end of the day with load balancing, so if you’re familiar with the concept, there’s nothing new here really.</p>
+
+<p>One more important thing is that if you get to a point where you need a more reliable solution, it’s very easy to just reconfigure the ECS service to use and actual load balancer.</p>
+
+<h2 id="scope-of-this-post">Scope of this post</h2>
+<p>In this post I’d like to walk you through a simple concept, which I’m sure is not perfect, so please do let me know if I missed something!</p>
+
+<p>The goal will be to:</p>
+<ul>
+  <li>Create an EC2 spot instance based ECS cluster</li>
+  <li>Create a simple http hello-world ECS service with service discovery enabled</li>
+  <li>Create an EC2 box that’ll host HAProxy</li>
+  <li>Configure HAProxy and set up SSL termination using Let’s Encrypt’s certbot</li>
+</ul>
+
+<h2 id="setting-up-ecs">Setting up ECS</h2>
+
+<p><strong>1.</strong> Without going into too much detail on how to use ECS, let’s create a new ECS cluster, select EC2 Linux + Networking and use the following configuration:</p>
+<ul>
+  <li>Provisioning model: Spot</li>
+  <li>Allocation strategy: Lowest price</li>
+  <li>EC2 instance types: t2.micro, t2.small, t3.micro, t3.small</li>
+  <li>Number of instances should just be 1 at this point</li>
+  <li>Create a new VPC</li>
+  <li>Either select an existing or create new container instance and spot fleet IAM roles</li>
+  <li>No need to enable Container Insights</li>
+</ul>
+
+<p><strong>2.</strong> Once the cluster is ready, create a task definition for our hello-world service. Again, without going into too much detail, these are the key configuration points:</p>
+<ul>
+  <li>Name: hello-world</li>
+  <li>Compatibilities / Requires compatibilities: EC2</li>
+  <li>Container definitions:
+    <ul>
+      <li>image: strm/helloworld-http</li>
+      <li>port mappings:
+        <ul>
+          <li>containerPort: 80</li>
+          <li>hostPort: 0 <strong>&lt;= This will specify dynamic port allocation on the host</strong></li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+</ul>
+
+<p><strong>3.</strong> With a cluster and a task definition we can now create the service:</p>
+<ul>
+  <li>Launch type: EC2</li>
+  <li>Task definition / revision: hello-world (latest)</li>
+  <li>Cluster: select your cluster created in step 1</li>
+  <li>Service name: hello-world-service</li>
+  <li>Service type: Replica</li>
+  <li>Number of tasks: 3 <strong>&lt;= In order to test load balancing</strong></li>
+  <li>Deployment type: Rolling update</li>
+  <li>Load balancer type: None <strong>&lt;= Whole point of this post</strong></li>
+  <li>Enable service discovery integration: checked</li>
+  <li>Namespace: create new private namespace</li>
+  <li>Namespace name: internal</li>
+  <li>Cluster VPC: select the VPC that belongs to the cluster created in step 1</li>
+  <li>Configure service discovery service: Create new service discovery service</li>
+  <li>Service discovery name: _hello-world-service <strong>&lt;= Very important: HAProxy will only resolve the SRV DNS correctly if it starts with an underscore</strong></li>
+  <li>Enable ECS task health propagation: checked</li>
+  <li>Service Auto Scaling: Don not adjust the service’s desired count</li>
+</ul>
+
+<p><a href="https://tamas.dev/static/2019-10-17/service_discovery_records.png" target="_blank"><img src="https://tamas.dev/static/2019-10-17/service_discovery_records.png" alt="SRV and A records created by service discovery service" /></a></p>
+
+<h2 id="setting-up-haproxy">Setting up HAProxy</h2>
+
+<p><strong>1.</strong> Create an EC2 box. Here I just simply created a t3a.nano EC2 instance with Ubuntu 18.04 LTS. The important bit here is to make sure to place the instance in the same VPC as the ECS instances.</p>
+
+<p><a href="https://tamas.dev/static/2019-10-17/ec2_config.png" target="_blank"><img src="https://tamas.dev/static/2019-10-17/ec2_config.png" alt="EC2 configuration" /></a></p>
+
+<p><strong>2.</strong> Configure security groups. In order to be able to access all ports on the instances, you’ll need to add an Inbound rule to the security group used by the ECS instances. The rule should allow All TCP traffic coming from the security group created for the HAProxy instance.</p>
+
+<p><a href="https://tamas.dev/static/2019-10-17/sg_config.png" target="_blank"><img src="https://tamas.dev/static/2019-10-17/sg_config.png" alt="Security group configuration" /></a></p>
+
+<p><strong>3.</strong> At this point we can test if we have access to the services and if the DNS resolution is working correctly:</p>
+<ul>
+  <li>SSH into the EC2 box we’ve just created</li>
+  <li>Test if <code class="highlighter-rouge">dig srv _hello-world-service.internal</code> returns the 3 SRV records we expect</li>
+  <li>Test if the record is accesible on the specified port, ie.: <code class="highlighter-rouge">curl 703a...c6d._hello-world-service.internal:32770</code></li>
+</ul>
+
+<p><a href="https://tamas.dev/static/2019-10-17/test_dig_curl.png" target="_blank"><img src="https://tamas.dev/static/2019-10-17/test_dig_curl.png" alt="Test DNS and access with dig and curl" /></a></p>
+
+<p>If you get a HTML response with Hello World, all is good so far.</p>
+
+<p><strong>4.</strong> Time do set up Let’s Encrypt. My preferred way of doing that on AWS is via DNS so there’s no need to shut down the proxy server, or to have certbot specific route configurations. Basically certbot will use the machined IAM role to write some entries into the domain’s Hosted Zone in Route 53. The IAM role that you need to create and attach to the EC2 box is the following:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>{
+    "Version": "2012-10-17",
+    "Id": "certbot-dns-route53 policy",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "route53:ListHostedZones",
+                "route53:GetChange"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Effect" : "Allow",
+            "Action" : [
+                "route53:ChangeResourceRecordSets"
+            ],
+            "Resource" : [
+                "arn:aws:route53:::hostedzone/YOURHOSTEDZONEID"
+            ]
+        }
+    ]
+}
+
+</code></pre></div></div>
+<p>Don’t forget to add your Route53 Hosted Zone ID to the resources section.</p>
+
+<p><strong>5.</strong> Time to install HAProxy and certbot:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo add-apt-repository -y ppa:vbernat/haproxy-2.0
+sudo add-apt-repository -y ppa:certbot/certbot
+sudo apt-get update
+sudo apt-get install -y software-properties-common certbot python3-certbot-dns-route53 haproxy=2.0.\* 
+</code></pre></div></div>
+
+<p><strong>6.</strong> Let’s run certbot and prepare certificates for HAProxy:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>certbot certonly -d *.yourdomain.com -d yourdomain.com \
+    --dns-route53 \
+    -m your.email@email.com \
+    --agree-tos \
+    --non-interactive \
+    --server https://acme-v02.api.letsencrypt.org/directory \
+    --logs-dir ~/letsencrypt/log/ \
+    --config-dir ~/letsencrypt/config/ \
+    --work-dir ~/letsencrypt/work/
+
+</code></pre></div></div>
+
+<p>Once the certificates are generated, you need to concatenate them for HAProxy:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>sudo mkdir -p /etc/haproxy/certs/
+DOMAIN='yourdomain.com' sudo -E bash -c 'cat ./letsencrypt/config/live/$DOMAIN/fullchain.pem ./letsencrypt/config/live/$DOMAIN/privkey.pem &gt; /etc/haproxy/certs/$DOMAIN.pem'
+</code></pre></div></div>
+
+<p><strong>7.</strong> Configure HAProxy: Open HAProxy configuration with your favourite editor (<code class="highlighter-rouge">sudo nano /etc/haproxy/haproxy.cfg</code>) and append the following at the end of the file:</p>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># In case it's a simple http call, we redirect to the basic backend server
+# which in turn, if it isn't an SSL call, will redirect to HTTPS that is
+# handled by the frontend setting called 'www-https'.
+frontend www-http
+    # Redirect HTTP to HTTPS
+    bind *:80
+    # Adds http header to end of end of the HTTP request
+    http-request add-header X-Forwarded-Proto http
+    # Sets the default backend to use which is defined below with name 'www-backend'
+    default_backend www-backend
+
+# If the call is HTTPS we set the certificate and direct traffic to the 
+# backend server.
+frontend www-https
+    # Bind 443 with the generated letsencrypt cert.
+    bind *:443 ssl crt /etc/haproxy/certs/yourdomain.com.pem
+    # set x-forward to https
+    http-request add-header X-Forwarded-Proto https
+    # set X-SSL in case of ssl_fc &lt;- explained below
+    http-request set-header X-SSL %[ssl_fc]
+    default_backend www-backend
+
+resolvers awsvpc
+  # Your nameserver address should always be your VPC CIDR block +2
+  # (in this case 10.0.0.0 + 2 = 10.0.0.2) and port 53
+  nameserver dns1 10.0.0.2:53
+  resolve_retries 3
+  timeout retry 1s
+  # allow larger DNS payloads due to multiple entries
+  accepted_payload_size 8192
+
+backend www-backend
+   # Redirect with code 301 so the browser understands it is a redirect. If it's not SSL_FC.
+   # ssl_fc: Returns true when the front connection was made via an SSL/TLS transport
+   # layer and is locally deciphered. This means it has matched a socket declared
+   # with a "bind" line having the "ssl" option.
+   redirect scheme https code 301 if !{ ssl_fc }
+   # Servers for the running ECS service:
+   server-template srv 3 _hello-world-service.internal check resolvers awsvpc resolve-opts allow-dup-ip init-addr last,libc,none
+
+</code></pre></div></div>
+
+<p>A little explanation here: The key configuration bit for this use case is HAProxy’s <code class="highlighter-rouge">server-template</code> directive that adds the backend servers dynamically, base on the response coming from the DNS server.</p>
+
+<p>Once done, just restart HAProxy <code class="highlighter-rouge">sudo service haproxy restart</code> and everything should be good to go!</p>
+
+<h2 id="like-magic-but-better">Like magic, but better!</h2>
+
+<p>Once the server has been restarted, you can open your browser and visit your domain. You should see a <em>Hello from XYZ</em> message where XYZ is a hash of the server’s container. Since the load is spread across multiple instances, every time you refresh the page, the target container can be a different one from the previous page load. I really hope you’ve found this post useful and if you’d like to do any further research, please see the resources I used below. Also, just to get a sense of scale and pricing, find below the current, the updated and the ELB based monthly charges.</p>
+
+<h2 id="monthly-charges">Monthly charges</h2>
+
+<h4 id="current-monthly-charges">Current monthly charges:</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1x t2.micro on demand:
+$0.0132USD * 24 hours * 30 days = $9.5 per month
+</code></pre></div></div>
+<p>Total: <strong>$9.504</strong> per month</p>
+
+<h4 id="updated-monthly-charges">Updated monthly charges:</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1x t3a.nano on demand (proxy server):
+$0.0053 * 24 * 30 = $3.816 per month
+
+1x t3a.micro spot (ECS instance):
+~$0.0031 * 24 * 30 = $2.232 per month
+
+Route53 and Cloud Map charges:
+~$1.5 per month
+</code></pre></div></div>
+<p>Total: <strong>$7.548</strong> per month (yes, it means paying less for a more managed, more scalable solution)</p>
+
+<h4 id="monthly-charges-using-an-elb">Monthly charges using an ELB:</h4>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>1x t3a.micro spot (ECS instance):
+~$0.0031 * 24 * 30 = $2.232 per month
+
+1x Application Load Balancer:
+$0.02646 * 24 * 30 = $19.0512 per month + LCU-hour charges
+</code></pre></div></div>
+<p>Total: <strong>$21.2832</strong> per month (+ LCU-hour charges)</p>
+
+<hr />
+
+<p>Resources used:</p>
+
+<p><a href="https://www.haproxy.com/blog/dns-service-discovery-haproxy/">DNS for Service Discovery in HAProxy</a></p>
+
+<p><a href="https://skarlso.github.io/2017/02/15/how-to-https-with-hugo-letsencrypt-haproxy/">How to HTTPS with Hugo LetsEncrypt and HAProxy</a></p>
+
+
+  </div><a class="u-url" href="/aws/ecs/haproxy/nginx/certbot/microservices/containers/route53/dns/srv/2019/10/18/run-your-ecs-cluster-with-service-discovery-and-haproxy-for-8-a-month.html" hidden></a>
+</article>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading">tamas.dev</h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name">tamas.dev</li><li><a class="u-email" href="mailto:tamas.boros@protonmail.com">tamas.boros@protonmail.com</a></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"><li><a href="https://github.com/TamasNo1"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#github"></use></svg> <span class="username">TamasNo1</span></a></li><li><a href="https://www.twitter.com/TamasNo1"><svg class="svg-icon"><use xlink:href="/assets/minima-social-icons.svg#twitter"></use></svg> <span class="username">TamasNo1</span></a></li></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p></p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
