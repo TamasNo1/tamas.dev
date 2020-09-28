@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Repurposing my old Chromebook to a low power home server"
-date:   2020-09-27 7:30:00 +0100
+date:   2020-09-28 7:30:00 +0100
 categories: repurpose asus c300 chromebook home server chromeos linux docker containers
 ---
 
@@ -9,6 +9,9 @@ categories: repurpose asus c300 chromebook home server chromeos linux docker con
 It was around 4 years ago when I bought a used, slightly beat up Asus C300 Chromebook from a friend of mine for £50. It served me well, I installed Linux on it and used it to work on some side projects while commuting. However as time passed by, I slowly forgot about it and it ended up in a box, being put away. I always thought it's a shame to just let it sit there, but I don't wanted to sell it for pennies and neither I wanted to throw it out as it is a perfectly fine machine for some lightweight tasks. I always had the idea to convert it to a home server (yes, with a 7W TDP Celeron N2830 CPU), but couldn't really find a guide online that explains how to do it and neither I had the urge to do the experimenting myself, up until now.
 
 ## The setup
+
+[![Chromebook home server][chromebook_image]][chromebook_image]{:target="_blank"}
+
 - 1x Asus C300 Chromebook
 - 1x 128GB USB drive
 - 1x vertical stand
@@ -74,3 +77,5 @@ Resources used:
 [Does GalliumOS not come with ssh abilities installed?](https://www.reddit.com/r/GalliumOS/comments/5b7vwi/does_galliumos_not_come_with_ssh_abilities/d9mx0ie/?utm_source=reddit&utm_medium=web2x&context=3)
 
 [How to change the default location for “docker create volume” command?](https://stackoverflow.com/a/52018760)
+
+[chromebook_image]: https://tamas.dev/static/2020-09-28/chromebook.jpg
